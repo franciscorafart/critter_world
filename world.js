@@ -1,12 +1,12 @@
 //This plan array creates a world object
 let plan = ["############################",
             "#   #  #    #      o      ##",
-            "#                          #",
+            "#~                         #",
             "#          #####           #",
             "##         #   #    ##     #",
             "###           ##     #     #",
             "#           ###      #     #",
-            "#   ####                   #",
+            "#   ####           ~       #",
             "#   ##       o             #",
             "# o  #         o       ### #",
             "#    #                     #",
@@ -73,24 +73,74 @@ Grid.prototype.forEach = function(f, context) {
 function randomElement(array){
   return array[Math.floor(Math.random()*array.length)]
 }
+
 //returns array with directions
 let directionNames = "n ne e se s sw w nw".split(" ")
 
-//Criter object --> Missing look n find methods
+//World objects
+
+//Wall object
+function Wall(){}
+
+//Critter object
 function BouncingCritter(){
   this.direction = randomElement(directionNames)
 }
-//act method for criter
+
+//Act method for criter --> It looks to its surroundings and returns an action object that contains the action in the type property
+//and direction in the direction property
 BouncingCritter.prototype.act = function(view){
   //if the direction is not empty, direction find an empty space.
   //If there's no empty space the direction is "s" (to prevent null values)
+
+  //this.direction (where the critter wants to go ) is already predefined in the property - If it's not a " ",
+  //then apply find() method to find an empty space around it.
   if(view.look(this.direction)!= " "){
     this.direction = view.find(" ") || "s"
   }
   return {type: "move", direction: this.direction}
 }
+//wall follower critter object
 
-//WORLD OBJECT
+//this function takes a direction (s,n,ne) and returns a direction which is 45 * n
+//it allows for compass navigation
+function dirPlus(dir,n){
+  let index = directionNames.indexOf(dir)
+  return directionNames[(index + n + 8)%8] //this is to be able to add n on an 8 based counting system
+  //for example: dir = 6 (west) and n=3 (135 deg)  .
+  //We know 135 from w is ne. 6+3+8 = 17 --> 17%8 = 1 . The index of ne is 1
+}
+
+function WallFollower(){
+  this.dir = "s"
+}
+
+WallFollower.prototype.act = function(view){
+  //starts with s
+  let start = this.dir
+  //if ne has a wall
+  if (view.look(dirPlus(this.dir,-3)) != " "){
+
+    //this.dir equals east (right)
+    start = this.dir = dirPlus(this.dir, -2)
+  }
+  //if east has a wall, move clockwise until finding empty space
+  while(view.look(this.dir) != " "){
+    this.dir = dirPlus(this.dir,1)
+
+    //if a whole loop has done and only walls, break
+    //It will return move towards the original(start) direction,
+    //but in the letAct function this will not be executed due to checkDestination()
+    if(this.dir ==start){
+      break
+    }
+  }
+  return {type:"move",direction:this.dir}
+}
+
+
+//World
+//Functions for world object characters and elements
 
 function elementFromChar(legend, ch){
   if (ch == " "){
@@ -103,14 +153,28 @@ function elementFromChar(legend, ch){
   return element
 }
 
+//function to get character from the element (legend object)
+function charFromElement(element){
+  if (element == null){
+    return " "
+  } else{
+    return element.originChar
+  }
+}
+//WORLD OBJECT
+
 function World(map, legend){
   //Takes in a map which is an array of arrays, and creates a grid from it
   //takes a legend which is an object with descriptions for each character
 
+  //Create a grid from the map
   var grid = new Grid(map[0].length, map.length)//x and y values
+
+  //properties
   this.grid = grid
   this.legend = legend
 
+  //Turning the map into a grid
   map.forEach(function(line,y){
     //Here we're not in the function scope of the consctructor.
     //The this here doest not refer to the same this as the constructor
@@ -126,14 +190,7 @@ function World(map, legend){
     }
   })
 }
-//function to get character from the element (legend object)
-function charFromElement(element){
-  if (element == null){
-    return " "
-  } else{
-    return element.originChar
-  }
-}
+
 
 //Method that turns the World into a string
 World.prototype.toString = function(){
@@ -170,8 +227,12 @@ World.prototype.turn = function(){
   },this) //to access the correct this inside the inner function
 }
 
+//
 World.prototype.letAct = function(critter,vector){
+  //create an action from the .act() method, passing the critters view as an argument.
+  //'this' is the world
   let action = critter.act(new View(this,vector))
+  //if action is move
   if (action && action.type == "move"){
     //look for destination slot
     let dest = this.checkDestination(action, vector)
@@ -183,7 +244,7 @@ World.prototype.letAct = function(critter,vector){
     }
   }
 }
-
+//function to check destination of actions
 World.prototype.checkDestination = function(action, vector){
   if(directions.hasOwnProperty(action.direction)){
     let dest = vector.plus(directions[action.direction])
@@ -236,11 +297,8 @@ View.prototype.find = function(ch){
     //returns a ramdom element of the found array
     return randomElement(found)
 }
-//Wall object
 
-function Wall(){}
-
-let world = new World(plan,{"#":Wall,'o':BouncingCritter})
+let world = new World(plan,{"#":Wall,'o':BouncingCritter, '~':WallFollower})
 
 
 //Print out thre turns of the board
@@ -249,10 +307,11 @@ let world = new World(plan,{"#":Wall,'o':BouncingCritter})
 //   console.log(world.toString())
 // }
 
+//TODO: Implement animateWorld() method
+// animateWorld(world)
+
+//Temporary animate method
 let clock = setInterval(()=>{
   world.turn()
   console.log(world.toString())
 },200)
-
-//TODO: Implement animateWorld() method
-// animateWorld(world)
