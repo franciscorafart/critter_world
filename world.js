@@ -12,6 +12,9 @@ let plan = ["############################",
             "#    #                     #",
             "############################"]
 
+
+
+
 //World with critters
 //The interface consists of the following methods:
 //1. toString() method that turns the plan into a printable string
@@ -254,6 +257,181 @@ World.prototype.checkDestination = function(action, vector){
   }
 }
 
+//World with life --> Prototypical inheritance
+function LifelikeWorld(map,legend){
+  World.call(this,map,legend)
+}
+//we make the prototype the same as the World prototype. Prototypical inheritance
+LifelikeWorld.prototype = Object.create(World.prototype)
+
+//???
+let actionTypes = Object.create(null)
+
+//Redefine the letAct method
+LifelikeWorld.prototype.letAct = function(critter,vector){
+  let action = critter.act(new View(this,vector))
+  let handled = action && action.type in actionTypes &&
+  actionTypes[action.type].call(this, critter, vector, action)
+
+  //conditional to remove energy from critter and kill it if it doesn't have anymore
+  if(!handled){
+    critter.energy -= 0.2
+    if(critter.energy<=0){
+      //kill the critter
+      this.grid.set(vector,null)
+    }
+  }
+}
+
+//actionTypes
+
+actionTypes.grow = function(critter){
+  critter.energy += 0.5
+  return true
+}
+
+actionTypes.move = function(critter,vector,action){
+  let dest =  this.checkDestination(action, vector)
+  //cases where critter wont be allowed to move
+  if (dest == null ||
+  critter.energy <= 1 ||
+  this.grid.get(dest) != null){
+    return false
+  }
+  //take energy and move critter
+  critter.energy -= 1
+  this.grid.set(vector, null)
+  this.grid.set(dest,critter)
+  return true
+}
+
+actionTypes.eat = function(critter,vector,action){
+  let dest = this.checkDestination(action, vector)
+  //dont understand this line
+  let atDest = dest != null && this.grid.get(dest)
+  //if there's empty space or there's no energy at destination
+  if(!atDest || atDest.energy == null){
+    return false
+  }
+  //transfer energy
+  critter.energy += atDest.energy
+  //make plant at destination dissapear
+  this.grid.set(dest,null)
+  return true
+}
+
+actionTypes.reproduce = function(critter, vector, action){
+  let baby = elementFromChar(this.legend,critter.originChar)
+  let dest = this.checkDestination(action, vector)
+  if(dest ==  null || critter.energy <= 2 *baby.energy || this.grid.get(dest) != null){
+    return false
+  }
+  critter.energy -= 2*baby.energy
+  this.grid.set(dest,baby)
+  return true
+}
+//New critters
+
+function Plant(){
+  this.energy = 3 + Math.random()*4
+}
+
+Plant.prototype.act = function(view){
+  if(this.energy>15){
+    let space = view.find(" ")
+    if (space){
+      console.log("reproduce plant")
+      return {type:"reproduce", direction: space}
+    }
+  }
+  if (this.energy < 20){
+    return {type: "grow"}
+  }
+}
+
+function PlantEater(){
+  this.energy = 20
+}
+PlantEater.prototype.act = function(view){
+  let space = view.find(" ")
+  if (this.energy > 60 && space){
+    return {type: "reproduce", direction: space}
+  }
+  let plant = view.find('*')
+
+  if(plant){
+    return {type:"eat",direction:plant}
+  }
+  if(space){
+    return {type: "move", direction:space}
+  }
+}
+
+//Smart plant eater
+function SmartPlantEater(){
+  PlantEater.call(this)
+}
+//inherit from plan eater
+SmartPlantEater.prototype = Object.create(PlantEater.prototype)
+
+//redefine act method
+SmartPlantEater.prototype.act = function(view){
+  let space = view.find(" ")
+  if (this.energy>40 && space){
+    console.log("reproduce")
+    return {type: "reproduce", direction: space}
+  }
+  let plant = view.find('*')
+  let hungry = false
+  let plantMature = false
+  if(this.energy < 100){
+    hungry = true
+  }
+  // if (plant!= null && plant.energy>2){
+  //   plantMature = true
+  // }
+
+  //eat only if hungry
+  //eat only if plant has a certain amount of energy
+  if(plant && hungry){
+    return {type:"eat", direction: plant}
+  }
+  if (space){
+    return {type:"move", direction:space}
+  }
+}
+//Tiger
+function Tiger(){
+  SmartPlantEater.call(this)
+  this.energy = 100
+}
+
+//TODO: solve direction
+Tiger.prototype = Object.create(SmartPlantEater)
+
+Tiger.prototype.act = function(view){
+  let space = view.find(" ")
+  if (this.energy>130 && space){
+    return {type: "reproduce", direction: space}
+  }
+  let prey = view.find('O')
+  let hungry = false
+  if(this.energy < 100){
+    hungry = true
+  }
+  // if (plant!= null && plant.energy>2){
+  //   plantMature = true
+  // }
+
+  //eat only if hungry
+  //eat only if plant has a certain amount of energy
+  if(prey && hungry){
+    return {type:"eat", direction: prey}
+  }
+  if (space){
+    return {type:"move", direction:space}
+  }
+}
 //View OBJECT
 
 //The View object takes a world and a position in the world as arguments
@@ -310,8 +488,59 @@ let world = new World(plan,{"#":Wall,'o':BouncingCritter, '~':WallFollower})
 //TODO: Implement animateWorld() method
 // animateWorld(world)
 
-//Temporary animate method
+//Animate world
+
+// let clock = setInterval(()=>{
+//   world.turn()
+//   console.log(world.toString())
+// },200)
+
+//Animate valley
+
+let valley = new LifelikeWorld(
+  ["############################",
+"#####                 ######",
+"##   ***                **##",
+"#   *##**         **  O  *##",
+"#    ***     O    ##**    *#",
+"#       O         ##***    #",
+"#                 ##**     #",
+"#   O       #*             #",
+"#*          #**       O    #",
+"#***        ##**    O    **#",
+"##****     ###***       *###",
+"############################"],
+              {"#": Wall,
+               "O": SmartPlantEater,
+               "*": Plant}
+            );
+
+let ecosystem = new LifelikeWorld(
+              ["####################################################",
+               "#                 ####         ****              ###",
+               "#   *  @                     ########       OO    ##",
+               "#   *    ##        O O                 ****       *#",
+               "#       ##*                        ##########     *#",
+               "#      ##***  *         ****                     **#",
+               "#* **  #  *  ***      #########                  **#",
+               "#* **  #      *               #   *              **#",
+               "#     ##              #   O   #  ***          ######",
+               "#*            @       #       #   *        O  #    #",
+               "#*                    #  ######           ***** ** #",
+               "###          ****          ***                  ** #",
+               "#       O                        @         O       #",
+               "#   *     ##  ##  ##  ##               ###      *  #",
+               "#   **         #              *       #####  O     #",
+               "##  **  O   O  #  #    ***  ***        ###      ** #",
+               "###               #   *****                    ****#",
+               "####################################################"],
+              {"#": Wall,
+               "@": Tiger,
+               "O": SmartPlantEater, // from previous exercise
+               "*": Plant}
+            )
+
 let clock = setInterval(()=>{
-  world.turn()
-  console.log(world.toString())
-},200)
+  ecosystem.turn()
+  console.log(ecosystem.toString())
+}, 200)
