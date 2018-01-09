@@ -1,16 +1,16 @@
 //This plan array creates a world object
-let plan = ["############################",
-            "#   #  #    #      o      ##",
-            "#~                         #",
-            "#          #####           #",
-            "##         #   #    ##     #",
-            "###           ##     #     #",
-            "#           ###      #     #",
-            "#   ####           ~       #",
-            "#   ##       o             #",
-            "# o  #         o       ### #",
-            "#    #                     #",
-            "############################"]
+// let plan = ["############################",
+//             "#   #  #    #      o      ##",
+//             "#~                         #",
+//             "#          #####           #",
+//             "##         #   #    ##     #",
+//             "###           ##     #     #",
+//             "#           ###      #     #",
+//             "#   ####           ~       #",
+//             "#   ##       o             #",
+//             "# o  #         o       ### #",
+//             "#    #                     #",
+//             "############################"]
 
 
 
@@ -476,7 +476,7 @@ View.prototype.find = function(ch){
     return randomElement(found)
 }
 
-let world = new World(plan,{"#":Wall,'o':BouncingCritter, '~':WallFollower})
+// let world = new World(plan,{"#":Wall,'o':BouncingCritter, '~':WallFollower})
 
 
 //Print out thre turns of the board
@@ -497,23 +497,23 @@ let world = new World(plan,{"#":Wall,'o':BouncingCritter, '~':WallFollower})
 
 //Animate valley
 
-let valley = new LifelikeWorld(
-  ["############################",
-"#####                 ######",
-"##   ***                **##",
-"#   *##**         **  O  *##",
-"#    ***     O    ##**    *#",
-"#       O         ##***    #",
-"#                 ##**     #",
-"#   O       #*             #",
-"#*          #**       O    #",
-"#***        ##**    O    **#",
-"##****     ###***       *###",
-"############################"],
-              {"#": Wall,
-               "O": SmartPlantEater,
-               "*": Plant}
-            );
+// let valley = new LifelikeWorld(
+//   ["############################",
+// "#####                 ######",
+// "##   ***                **##",
+// "#   *##**         **  O  *##",
+// "#    ***     O    ##**    *#",
+// "#       O         ##***    #",
+// "#                 ##**     #",
+// "#   O       #*             #",
+// "#*          #**       O    #",
+// "#***        ##**    O    **#",
+// "##****     ###***       *###",
+// "############################"],
+//               {"#": Wall,
+//                "O": SmartPlantEater,
+//                "*": Plant}
+//             );
 
 let ecosystem = new LifelikeWorld(
               ["####################################################",
