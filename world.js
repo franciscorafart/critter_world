@@ -536,7 +536,7 @@ let ecosystem = new LifelikeWorld(
                "####################################################"],
               {"#": Wall,
                "@": Tiger,
-               "O": SmartPlantEater, // from previous exercise
+               "O": SmartPlantEater, 
                "*": Plant}
             )
 
