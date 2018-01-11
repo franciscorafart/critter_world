@@ -694,7 +694,7 @@ let ecosystem = new LifelikeWorld(
             )
 
 
-            
+
 let slider = document.getElementById('myRange')
 let output = document.getElementById('sVal')
 
@@ -722,5 +722,5 @@ startClock(300)
 
 //TODO:
 //last at least 1000
-//Tigers and critters behave as magnets when they chase their prey
+//Tigers and critters behave as magnets
 //Theyre not moving when walls are present
