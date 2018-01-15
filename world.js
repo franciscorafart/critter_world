@@ -250,6 +250,12 @@ function countCritters(str){
   document.getElementById('tigers').innerHTML = tigerN
   document.getElementById('critters').innerHTML = critterN
   document.getElementById('plants').innerHTML = plantN
+
+  //Break interval and let the user know if all elements are dead
+  if(tigerN<=0 && critterN<=0){
+    document.getElementById('gameOver').innerHTML = "World is dead!"
+    clearInterval(clock)
+  }
 }
 
 //
@@ -392,10 +398,13 @@ actionTypes.eat = function(critter,vector,action){
   if(!atDest || atDest.energy == null){
     return false
   }
+    console.log(critter)
   //transfer energy
   critter.energy += atDest.energy
   //make plant at destination dissapear
   this.grid.set(dest,null)
+
+
   return true
 }
 
@@ -429,7 +438,7 @@ Plant.prototype.act = function(view){
 }
 
 function PlantEater(){
-  this.energy = 20
+  this.energy = 10
 }
 PlantEater.prototype.act = function(view){
   let space = view.find(" ")
@@ -455,28 +464,28 @@ SmartPlantEater.prototype = Object.create(PlantEater.prototype)
 
 //redefine act method
 SmartPlantEater.prototype.act = function(view){
-  let space = view.find(" ")
+  let space
 
   //TODO: Make critters chase plants
-  // let directionNearest = view.lookForNearest("*",2)
+  let directionNearest = view.lookForNearest("*",8)
   //
-  // if (directionNearest == null){
-  //   // space = view.find(" ")
-  // } else{
-  //   for (let dir in directions){
-  //     //compare key values of objects, not objects themselves
-  //     if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
-  //       space = dir
-  //     }
-  //   }
-  // }
+  if (directionNearest == null){
+    space = view.find(" ")
+  } else{
+    for (let dir in directions){
+      //compare key values of objects, not objects themselves
+      if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
+        space = dir
+      }
+    }
+  }
 
-  if (this.energy>40 && space){
+  if (this.energy>30 && space){
     console.log("reproduce")
     return {type: "reproduce", direction: space}
   }
   let plant = view.find('*')
-  let hungry = false
+  let hungry = true
   let plantMature = false
   if(this.energy < 100){
     hungry = true
@@ -506,7 +515,7 @@ Tiger.prototype.act = function(view){
   let space
 
   //look for a near critter, define next space according to its position
-  let directionNearest = view.lookForNearest("O",12)
+  let directionNearest = view.lookForNearest("O",8)
 
   if (directionNearest != null){
     //convert to directions
@@ -525,19 +534,28 @@ Tiger.prototype.act = function(view){
     }
   }
 
-  if (this.energy>130 && space){
-    return {type: "reproduce", direction: space}
-  }
+//TODO: reproduction for Tiger not working
+  // if (this.energy>100 && space){
+  //   return {type: "reproduce", direction: space}
+  // }
+
+  //TODO: Problem: Tiger is eating anyway without being hungry
 
   let prey = view.find('O')
   let hungry = false
   if(this.energy < 80){
+    console.log('tiger Hungry with '+this.energy +" energy")
     hungry = true
+  } else{
+    console.log("Tiger not hungry with "+this.energy+ " energy")
   }
+
+  // console.log("hungry is " +hungry)
 
   //eat only if hungry
   //eat only if plant has a certain amount of energy
-  if(prey && hungry){
+  if(prey && hungry==true){
+    console.log("Tiger ate!")
     return {type:"eat", direction: prey}
   }
 
@@ -630,11 +648,22 @@ View.prototype.lookForNearest = function(ch, scope){
 
   let res = new Vector(chaseX,chaseY)
 
-  //TODO: Change direction if there's a wall
-  //return null if the direction array has a wall
-  // if(this.look(res) == "#"){
-  //   return null
-  // }
+  // TODO: Change direction if there's a wall
+  // return null if the direction array has a wall
+
+  //extract direction from vector for closest direction
+  let thisDir = ''
+  for(let dir in directions){
+    if (directions[dir].x == res.x && directions[dir].y == res.y){
+      thisDir = dir
+    }
+  }
+
+  //If the tiger faces wall to reach his prey, then return null, not the direction
+  if(this.look(thisDir) == "#"){
+    console.log("Tiger against the Wall!!!!")
+    return null
+  }
 
   return res
 }
@@ -681,7 +710,7 @@ let ecosystem = new LifelikeWorld(
    "#*                    #       #   *        O  #    #",
    "#*                    #  ######                 ** #",
    "###          ****          ***                  ** #",
-   "#       O                        @         O       #",
+   "#       O                                  O       #",
    "#   *     ##  ##  ##  ##               ###      *  #",
    "#   **         #              *       #####  O     #",
    "##  **  O   O  #  #    ***  ***        ###      ** #",
