@@ -400,10 +400,10 @@ actionTypes.eat = function(critter,vector,action){
   if(!atDest || atDest.energy == null){
     return false
   }
-    console.log(critter)
-    console.log("at ("+vector.x+","+vector.y+")")
-    console.log('Ate a')
-    console.log(atDest)
+    // console.log(critter)
+    // console.log("at ("+vector.x+","+vector.y+")")
+    // console.log('Ate a')
+    // console.log(atDest)
   //transfer energy
   critter.energy += atDest.energy
   //make plant at destination dissapear
@@ -544,18 +544,11 @@ Tiger.prototype.act = function(view){
   //   return {type: "reproduce", direction: space}
   // }
 
-  //TODO: Problem: Tiger is eating anyway without being hungry
-
   let prey = view.find('O')
   let hungry = false
   if(this.energy < 80){
-    console.log('tiger Hungry with '+this.energy +" energy")
     hungry = true
-  } else{
-    console.log("Tiger not hungry with "+this.energy+ " energy")
   }
-
-  // console.log("hungry is " +hungry)
 
   //eat only if hungry
   //eat only if plant has a certain amount of energy
@@ -702,25 +695,27 @@ View.prototype.find = function(ch){
 
 //Animate world
 
-let ecosystem = new LifelikeWorld(
-  ["####################################################",
-   "#                 ####         ****              ###",
-   "#   *  @  ##                 ########       OO    ##",
-   "#   *    ##        O O                 ****       *#",
-   "#       ##*                        ##########     *#",
-   "#      ##***  *         ****                     **#",
-   "#* **  #  *  ***      ##    ###                  **#",
-   "#* **  #      *               #   *              **#",
-   "#     ##              #   O   #  ***          ######",
-   "#*                    #           *        O  #    #",
-   "#*                    #  ######                 ** #",
-   "###    ***   ****          ***                  ** #",
-   "#       O                          @       O       #",
-   "#   *     ##  ##  ##  ##               ###      *  #",
-   "#   **         #              *       #####  O     #",
-   "##  **  O   O  #  #    ***  ***        ###      ** #",
-   "###               #   *****                    ****#",
-   "####################################################"],
+let cartography =
+["####################################################",
+ "#                 ####         ****              ###",
+ "#   *  @  ##                 ########       OO    ##",
+ "#   *    ##        O O                 ****       *#",
+ "#       ##*                        ##########     *#",
+ "#      ##***  *         ****                     **#",
+ "#* **  #  *  ***      ##    ###                  **#",
+ "#* **  #      *               #   *              **#",
+ "#     ##              #   O   #  ***          ######",
+ "#*                    #           *        O  #    #",
+ "#*                    #  ######                 ** #",
+ "###    ***   ****          ***                  ** #",
+ "#       O                          @       O       #",
+ "#   *     ##  ##  ##  ##               ###      *  #",
+ "#   **         #              *       #####  O     #",
+ "##  **  O   O  #  #    ***  ***        ###      ** #",
+ "###               #   *****                    ****#",
+ "####################################################"]
+
+let ecosystem = new LifelikeWorld(cartography,
               {"#": Wall,
                "@": Tiger,
                "O": SmartPlantEater, // from previous exercise
@@ -731,6 +726,7 @@ let ecosystem = new LifelikeWorld(
 
 let slider = document.getElementById('myRange')
 let output = document.getElementById('sVal')
+let resButton = document.getElementById('reset')
 
 //Add event listener to slider and display current value
 slider.addEventListener('change',()=>{
@@ -739,8 +735,19 @@ slider.addEventListener('change',()=>{
   startClock(currVal)
 })
 
-function startClock(speed){
+//reset triggers startClock with the current value of the slider, and an optional reset() function
+resButton.addEventListener('click',()=>{
+  startClock(slider.value, reset())
+})
+
+//start clock takes a speed in miliseconds and an optional function
+function startClock(speed, optional){
   clearInterval(clock)
+
+  if (optional!= null){
+    optional()
+  }
+
   //change interval of clock
   clock = setInterval(()=>{
     ecosystem.turn()
@@ -748,6 +755,17 @@ function startClock(speed){
     counter += 1
     document.getElementById('total').innerHTML = counter
   }, speed)
+}
+
+function reset(){
+  ecosystem = new LifelikeWorld(cartography,
+                {"#": Wall,
+                 "@": Tiger,
+                 "O": SmartPlantEater, // from previous exercise
+                 "*": Plant}
+              )
+  document.getElementById('gameOver').innerHTML = ""
+  counter = 0
 }
 
 let counter = 0
