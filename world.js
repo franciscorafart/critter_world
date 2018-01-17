@@ -1,20 +1,3 @@
-//This plan array creates a world object
-let plan = ["############################",
-            "#   #  #    #      o      ##",
-            "#~                         #",
-            "#          #####           #",
-            "##         #   #    ##     #",
-            "###           ##     #     #",
-            "#           ###      #     #",
-            "#   ####           ~       #",
-            "#   ##       o             #",
-            "# o  #         o       ### #",
-            "#    #                     #",
-            "############################"]
-
-
-
-
 //World with critters
 //The interface consists of the following methods:
 //1. toString() method that turns the plan into a printable string
@@ -204,6 +187,7 @@ World.prototype.toString = function(){
     for(let x= 0; x<this.grid.width;x++){
       //get element from grid
       let element = this.grid.get(new Vector(x,y))
+
       output += charFromElement(element)
     }
     output += "\n"
@@ -212,6 +196,9 @@ World.prototype.toString = function(){
   //TODO: send it to html
   document.getElementById("grid").innerHTML = output
 
+  //Function that counts elements
+  countCritters(output)
+
   return output
 }
 
@@ -219,6 +206,7 @@ World.prototype.toString = function(){
 World.prototype.turn = function(){
   //array to store critters that already moved
   let acted = []
+
   //for each to every slot in the grid. function is f and 'this' the context
   this.grid.forEach(function(critter,vector){
     //if critter hasn't already acted
@@ -228,6 +216,46 @@ World.prototype.turn = function(){
       this.letAct(critter,vector)
     }
   },this) //to access the correct this inside the inner function
+
+
+}
+//Function that counts critters and puts information in the HTML
+function countCritters(str){
+  //Counts
+  let tigerN = 0
+  let critterN = 0
+  let plantN = 0
+
+  for(let i = 0; i<str.length; i++){
+    let char = str.charAt(i)
+    // console.log(char)
+    switch(char){
+      case '@':
+      tigerN += 1
+      break
+      case 'O':
+      critterN += 1
+      break
+      case '*':
+      plantN +=1
+      break
+      case " ":
+      break
+      case "#":
+      break
+      default: break
+    }
+  }
+
+  document.getElementById('tigers').innerHTML = tigerN
+  document.getElementById('critters').innerHTML = critterN
+  document.getElementById('plants').innerHTML = plantN
+
+  //Break interval and let the user know if all elements are dead
+  if(tigerN<=0 && critterN<=0){
+    document.getElementById('gameOver').innerHTML = "World is dead!"
+    clearInterval(clock)
+  }
 }
 
 //
@@ -305,6 +333,65 @@ actionTypes.move = function(critter,vector,action){
   return true
 }
 
+actionTypes.moveOverGrass = function(critter,vector,action){
+  let dest = this.checkDestination(action,vector)
+  let destOverGrass = false
+  console.log(dest)
+  //movement can only be stopped by walls
+
+  //TODO: Bug found!!! Tiger wasn't eating, it was stepping over critters.
+  if (dest == null || critter.energy <= 1 || charFromElement(this.grid.get(dest))=="#" || charFromElement(this.grid.get(dest))=="O"){
+    return false
+  }
+  //take energy and move critter
+  critter.energy -= 1
+  //determine if destionation has grass
+  if (charFromElement(this.grid.get(dest))=="*"){
+    destOverGrass = true
+  }
+  //create element for plant that has been stepped on
+  let steppedPlant = elementFromChar(this.legend,'*')
+
+  //TODO: refactor code
+  // If destination has grass, store the grass on the critter
+  if (critter.overGrass){
+    if(destOverGrass){
+      //set the current space with grass
+      this.grid.set(vector, steppedPlant)
+      //put the critter in the new space
+      this.grid.set(dest,critter)
+      //assign true to overGrass of critter
+      critter.overGrass = true
+    }else{
+      //set the current space with grass
+      this.grid.set(vector, steppedPlant)
+      //put the critter in the new space
+      this.grid.set(dest,critter)
+      //assign true to overGrass of critter
+      critter.overGrass = false
+    }
+  } else{ //critter not over grass
+    if(destOverGrass){
+      //set the current space with grass
+      this.grid.set(vector, null)
+      //put the critter in the new space
+      this.grid.set(dest,critter)
+      //assign true to overGrass of critter
+      critter.overGrass = true
+    }else{
+      //set the current space with grass
+      this.grid.set(vector, null)
+      //put the critter in the new space
+      this.grid.set(dest,critter)
+      //assign true to overGrass of critter
+      critter.overGrass = false
+    }
+  }
+
+  return true
+
+}
+
 actionTypes.eat = function(critter,vector,action){
   let dest = this.checkDestination(action, vector)
   //dont understand this line
@@ -313,10 +400,16 @@ actionTypes.eat = function(critter,vector,action){
   if(!atDest || atDest.energy == null){
     return false
   }
+    // console.log(critter)
+    // console.log("at ("+vector.x+","+vector.y+")")
+    // console.log('Ate a')
+    // console.log(atDest)
   //transfer energy
   critter.energy += atDest.energy
   //make plant at destination dissapear
   this.grid.set(dest,null)
+
+
   return true
 }
 
@@ -337,20 +430,20 @@ function Plant(){
 }
 
 Plant.prototype.act = function(view){
+  //reproduce faste
   if(this.energy>15){
     let space = view.find(" ")
     if (space){
-      console.log("reproduce plant")
       return {type:"reproduce", direction: space}
     }
   }
-  if (this.energy < 20){
+  if (this.energy < 30){
     return {type: "grow"}
   }
 }
 
 function PlantEater(){
-  this.energy = 20
+  this.energy = 13
 }
 PlantEater.prototype.act = function(view){
   let space = view.find(" ")
@@ -376,21 +469,32 @@ SmartPlantEater.prototype = Object.create(PlantEater.prototype)
 
 //redefine act method
 SmartPlantEater.prototype.act = function(view){
-  let space = view.find(" ")
-  if (this.energy>40 && space){
-    console.log("reproduce")
+  let space
+
+  //TODO: Make critters chase plants
+  let directionNearest = view.lookForNearest("*",5)
+
+  //
+  if (directionNearest == null){
+    space = view.find(" ")
+  } else{
+    for (let dir in directions){
+      //compare key values of objects, not objects themselves
+      if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
+        space = dir
+      }
+    }
+  }
+
+  if (this.energy>20 && space){
     return {type: "reproduce", direction: space}
   }
   let plant = view.find('*')
-  let hungry = false
+  let hungry = true
   let plantMature = false
-  if(this.energy < 100){
+  if(this.energy < 30){
     hungry = true
   }
-  // if (plant!= null && plant.energy>2){
-  //   plantMature = true
-  // }
-
   //eat only if hungry
   //eat only if plant has a certain amount of energy
   if(plant && hungry){
@@ -402,34 +506,59 @@ SmartPlantEater.prototype.act = function(view){
 }
 //Tiger
 function Tiger(){
-  SmartPlantEater.call(this)
+  // SmartPlantEater.call(this)
   this.energy = 100
+  //To know if the critter is stepping over grass
+  this.overGrass = false
 }
 
 //TODO: solve direction
 Tiger.prototype = Object.create(SmartPlantEater)
 
 Tiger.prototype.act = function(view){
-  let space = view.find(" ")
-  if (this.energy>130 && space){
-    return {type: "reproduce", direction: space}
+
+  let space
+
+  //look for a near critter, define next space according to its position
+  let directionNearest = view.lookForNearest("O",10)
+
+  if (directionNearest != null){
+    //convert to directions
+    for (let dir in directions){
+      //compare key values of objects, not objects themselves
+      if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
+        space = dir
+      }
+    }
+  } else {
+    //If there's no critter, space is random empty space.
+    //If there's no space use grass, step over grass
+    space = view.find(" ")
+    if (space==null){
+      space = view.find("*")
+    }
   }
+
+//TODO: reproduction for Tiger not working
+  // if (this.energy>100 && space){
+  //   return {type: "reproduce", direction: space}
+  // }
+
   let prey = view.find('O')
   let hungry = false
-  if(this.energy < 100){
+  if(this.energy < 80){
     hungry = true
   }
-  // if (plant!= null && plant.energy>2){
-  //   plantMature = true
-  // }
 
   //eat only if hungry
   //eat only if plant has a certain amount of energy
-  if(prey && hungry){
+  if(prey && hungry==true){
+    console.log("Tiger ate!")
     return {type:"eat", direction: prey}
   }
+
   if (space){
-    return {type:"move", direction:space}
+    return {type:"moveOverGrass", direction:space}
   }
 }
 //View OBJECT
@@ -454,6 +583,89 @@ View.prototype.look =function(dir){
     return "#"
   }
 }
+
+View.prototype.lookForNearest = function(ch, scope){
+  critterVectorArray = []
+  //do a sweep of all the area on scope
+  let xScope = this.vector.x - scope
+  let yScope = this.vector.y - scope
+
+  for (let x = xScope; x<= this.vector.x +scope; x++){
+    for(let y = yScope; y<= this.vector.y + scope; y++){
+
+      let target = new Vector(x,y)
+      //check if target is in world
+      if (this.world.grid.isInside(target)){
+        //get its character and compare
+        let char = charFromElement(this.world.grid.get(target))
+        //if theres an element ch, add it's vector to an array
+        if (char == ch){
+          critterVectorArray.push(target)
+        }
+      }
+    }
+  }
+
+  if (critterVectorArray.length==0){
+    return null
+  }
+
+  //Evaluate which vector of the array is closer
+  //Pythagorian distance
+  let chaseVector = critterVectorArray.reduce((prev,next)=>{
+    let pythPrev = Math.sqrt(Math.pow(prev.x,2)+Math.pow(prev.y,2))
+    let pythNext = Math.sqrt(Math.pow(next.x,2)+Math.pow(next.y,2))
+
+    if(pythPrev<pythNext){
+      return prev
+    } else{
+      return next
+    }
+  })
+
+  //Make tigger move in that direction (ix x==0 , if x< hcritter move in that direction)
+
+  let chaseX
+  let chaseY
+
+  if (chaseVector.x < this.vector.x){
+    chaseX = -1
+  } else if (chaseVector.x == this.vector.x) {
+    chaseX = 0
+  } else{
+    chaseX = 1
+  }
+
+  if (chaseVector.y < this.vector.y){
+    chaseY = -1
+  } else if (chaseVector.y == this.vector.y) {
+    chaseY = 0
+  } else{
+    chaseY = 1
+  }
+
+  let res = new Vector(chaseX,chaseY)
+
+  // TODO: Change direction if there's a wall
+  // return null if the direction array has a wall
+
+  //extract direction from vector for closest direction
+  let thisDir = ''
+  for(let dir in directions){
+    if (directions[dir].x == res.x && directions[dir].y == res.y){
+      thisDir = dir
+    }
+  }
+
+  //If the tiger faces wall to reach his prey, or critter faces another critter, then return null, not the direction
+  if(this.look(thisDir) == "#" ||this.look(thisDir) == "O"){
+    console.log("Tiger against the Wall!!!!")
+    return null
+  }
+
+  return res
+}
+
 //This method finds all the positions of a character
 View.prototype.findAll = function(ch){
   let found = []
@@ -476,71 +688,89 @@ View.prototype.find = function(ch){
     return randomElement(found)
 }
 
-let world = new World(plan,{"#":Wall,'o':BouncingCritter, '~':WallFollower})
-
-
-//Print out thre turns of the board
-// for (let i = 0;i<5;i++){
-//   world.turn()
-//   console.log(world.toString())
-// }
+// let world = new World(plan,{"#":Wall,'o':BouncingCritter, '~':WallFollower})
 
 //TODO: Implement animateWorld() method
 // animateWorld(world)
 
 //Animate world
 
-// let clock = setInterval(()=>{
-//   world.turn()
-//   console.log(world.toString())
-// },200)
+let cartography =
+["####################################################",
+ "#                 ####         ****              ###",
+ "#   *  @  ##                 ########       OO    ##",
+ "#   *    ##        O O                 ****       *#",
+ "#       ##*                        ##########     *#",
+ "#      ##***  *         ****                     **#",
+ "#* **  #  *  ***      ##    ###                  **#",
+ "#* **  #      *               #   *              **#",
+ "#     ##              #   O   #  ***          ######",
+ "#*                    #           *        O  #    #",
+ "#*                    #  ######                 ** #",
+ "###    ***   ****          ***                  ** #",
+ "#       O                          @       O       #",
+ "#   *     ##  ##  ##  ##               ###      *  #",
+ "#   **         #              *       #####  O     #",
+ "##  **  O   O  #  #    ***  ***        ###      ** #",
+ "###               #   *****                    ****#",
+ "####################################################"]
 
-//Animate valley
-
-let valley = new LifelikeWorld(
-  ["############################",
-"#####                 ######",
-"##   ***                **##",
-"#   *##**         **  O  *##",
-"#    ***     O    ##**    *#",
-"#       O         ##***    #",
-"#                 ##**     #",
-"#   O       #*             #",
-"#*          #**       O    #",
-"#***        ##**    O    **#",
-"##****     ###***       *###",
-"############################"],
-              {"#": Wall,
-               "O": SmartPlantEater,
-               "*": Plant}
-            );
-
-let ecosystem = new LifelikeWorld(
-              ["####################################################",
-               "#                 ####         ****              ###",
-               "#   *  @                     ########       OO    ##",
-               "#   *    ##        O O                 ****       *#",
-               "#       ##*                        ##########     *#",
-               "#      ##***  *         ****                     **#",
-               "#* **  #  *  ***      #########                  **#",
-               "#* **  #      *               #   *              **#",
-               "#     ##              #   O   #  ***          ######",
-               "#*            @       #       #   *        O  #    #",
-               "#*                    #  ######           ***** ** #",
-               "###          ****          ***                  ** #",
-               "#       O                        @         O       #",
-               "#   *     ##  ##  ##  ##               ###      *  #",
-               "#   **         #              *       #####  O     #",
-               "##  **  O   O  #  #    ***  ***        ###      ** #",
-               "###               #   *****                    ****#",
-               "####################################################"],
+let ecosystem = new LifelikeWorld(cartography,
               {"#": Wall,
                "@": Tiger,
                "O": SmartPlantEater, 
                "*": Plant}
             )
 
-let clock = setInterval(()=>{
-  ecosystem.turn()
-  console.log(ecosystem.toString())
-}, 200)
+
+
+let slider = document.getElementById('myRange')
+let output = document.getElementById('sVal')
+let resButton = document.getElementById('reset')
+
+//Add event listener to slider and display current value
+slider.addEventListener('change',()=>{
+  const currVal = slider.value
+  output.innerHTML = currVal
+  startClock(currVal)
+})
+
+//reset triggers startClock with the current value of the slider, and an optional reset() function
+resButton.addEventListener('click',()=>{
+  startClock(slider.value, reset())
+})
+
+//start clock takes a speed in miliseconds and an optional function
+function startClock(speed, optional){
+  clearInterval(clock)
+
+  if (optional!= null){
+    optional()
+  }
+
+  //change interval of clock
+  clock = setInterval(()=>{
+    ecosystem.turn()
+    console.log(ecosystem.toString())
+    counter += 1
+    document.getElementById('total').innerHTML = counter
+  }, speed)
+}
+
+function reset(){
+  ecosystem = new LifelikeWorld(cartography,
+                {"#": Wall,
+                 "@": Tiger,
+                 "O": SmartPlantEater, // from previous exercise
+                 "*": Plant}
+              )
+  document.getElementById('gameOver').innerHTML = ""
+  counter = 0
+}
+
+let counter = 0
+let clock
+startClock(300)
+
+//TODO:
+//last at least 1000
