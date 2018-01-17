@@ -338,7 +338,9 @@ actionTypes.moveOverGrass = function(critter,vector,action){
   let destOverGrass = false
   console.log(dest)
   //movement can only be stopped by walls
-  if (dest == null || critter.energy <= 1 || charFromElement(this.grid.get(dest))=="#"){
+
+  //TODO: Bug found!!! Tiger wasn't eating, it was stepping over critters.
+  if (dest == null || critter.energy <= 1 || charFromElement(this.grid.get(dest))=="#" || charFromElement(this.grid.get(dest))=="O"){
     return false
   }
   //take energy and move critter
@@ -399,6 +401,9 @@ actionTypes.eat = function(critter,vector,action){
     return false
   }
     console.log(critter)
+    console.log("at ("+vector.x+","+vector.y+")")
+    console.log('Ate a')
+    console.log(atDest)
   //transfer energy
   critter.energy += atDest.energy
   //make plant at destination dissapear
@@ -426,19 +431,19 @@ function Plant(){
 
 Plant.prototype.act = function(view){
   //reproduce faste
-  if(this.energy>10){
+  if(this.energy>15){
     let space = view.find(" ")
     if (space){
       return {type:"reproduce", direction: space}
     }
   }
-  if (this.energy < 15){
+  if (this.energy < 30){
     return {type: "grow"}
   }
 }
 
 function PlantEater(){
-  this.energy = 10
+  this.energy = 13
 }
 PlantEater.prototype.act = function(view){
   let space = view.find(" ")
@@ -467,7 +472,8 @@ SmartPlantEater.prototype.act = function(view){
   let space
 
   //TODO: Make critters chase plants
-  let directionNearest = view.lookForNearest("*",8)
+  let directionNearest = view.lookForNearest("*",5)
+
   //
   if (directionNearest == null){
     space = view.find(" ")
@@ -480,14 +486,13 @@ SmartPlantEater.prototype.act = function(view){
     }
   }
 
-  if (this.energy>30 && space){
-    console.log("reproduce")
+  if (this.energy>20 && space){
     return {type: "reproduce", direction: space}
   }
   let plant = view.find('*')
   let hungry = true
   let plantMature = false
-  if(this.energy < 100){
+  if(this.energy < 30){
     hungry = true
   }
   //eat only if hungry
@@ -501,7 +506,7 @@ SmartPlantEater.prototype.act = function(view){
 }
 //Tiger
 function Tiger(){
-  SmartPlantEater.call(this)
+  // SmartPlantEater.call(this)
   this.energy = 100
   //To know if the critter is stepping over grass
   this.overGrass = false
@@ -515,7 +520,7 @@ Tiger.prototype.act = function(view){
   let space
 
   //look for a near critter, define next space according to its position
-  let directionNearest = view.lookForNearest("O",8)
+  let directionNearest = view.lookForNearest("O",10)
 
   if (directionNearest != null){
     //convert to directions
@@ -659,8 +664,8 @@ View.prototype.lookForNearest = function(ch, scope){
     }
   }
 
-  //If the tiger faces wall to reach his prey, then return null, not the direction
-  if(this.look(thisDir) == "#"){
+  //If the tiger faces wall to reach his prey, or critter faces another critter, then return null, not the direction
+  if(this.look(thisDir) == "#" ||this.look(thisDir) == "O"){
     console.log("Tiger against the Wall!!!!")
     return null
   }
@@ -704,13 +709,13 @@ let ecosystem = new LifelikeWorld(
    "#   *    ##        O O                 ****       *#",
    "#       ##*                        ##########     *#",
    "#      ##***  *         ****                     **#",
-   "#* **  #  *  ***      #########                  **#",
+   "#* **  #  *  ***      ##    ###                  **#",
    "#* **  #      *               #   *              **#",
    "#     ##              #   O   #  ***          ######",
-   "#*                    #       #   *        O  #    #",
+   "#*                    #           *        O  #    #",
    "#*                    #  ######                 ** #",
-   "###          ****          ***                  ** #",
-   "#       O                                  O       #",
+   "###    ***   ****          ***                  ** #",
+   "#       O                          @       O       #",
    "#   *     ##  ##  ##  ##               ###      *  #",
    "#   **         #              *       #####  O     #",
    "##  **  O   O  #  #    ***  ***        ###      ** #",
@@ -751,5 +756,3 @@ startClock(300)
 
 //TODO:
 //last at least 1000
-//Tigers and critters behave as magnets
-//Theyre not moving when walls are present
