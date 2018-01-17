@@ -1,4 +1,12 @@
 //World with critters
+
+//global variables.
+let counter = 0
+let clock
+//Start world
+startClock(300)
+
+
 //The interface consists of the following methods:
 //1. toString() method that turns the plan into a printable string
 //2. turn() method --> Criters can take a turn and updates the world
@@ -20,12 +28,12 @@ function Vector(x,y){
   this.x = x;
   this.y = y;
 }
-
+//Addition of two vectors
 Vector.prototype.plus = function(other){
   return new Vector(this.x + other.x, this.y + other.y)
 }
 
-//Grid object with methods
+//Grid object. Spaces in the grid are represented by an array
 function Grid(width, height){
   this.space = new Array(width*height);
   this.width = width;
@@ -39,7 +47,7 @@ Grid.prototype.isInside = function(vector){
 Grid.prototype.get = function(vector){
   return this.space[vector.x + this.width * vector.y]
 }
-//Method to set up the position of an element
+//Method to set up the an element in the given vector
 Grid.prototype.set = function(vector,value){
   this.space[vector.x + this.width*vector.y] = value
 }
@@ -55,7 +63,7 @@ Grid.prototype.forEach = function(f, context) {
   }
 }
 
-//function that returns a random element of an Array
+//function that returns a random element of an Array.
 function randomElement(array){
   return array[Math.floor(Math.random()*array.length)]
 }
@@ -68,7 +76,7 @@ let directionNames = "n ne e se s sw w nw".split(" ")
 //Wall object
 function Wall(){}
 
-//Critter object
+//Critter object. It's direction is always a random element from direction names
 function BouncingCritter(){
   this.direction = randomElement(directionNames)
 }
@@ -86,9 +94,9 @@ BouncingCritter.prototype.act = function(view){
   }
   return {type: "move", direction: this.direction}
 }
-//wall follower critter object
 
-//this function takes a direction (s,n,ne) and returns a direction which is 45 * n
+
+//This function takes a direction (s,n,ne) and returns a direction which is 45 * n
 //it allows for compass navigation
 function dirPlus(dir,n){
   let index = directionNames.indexOf(dir)
@@ -97,6 +105,7 @@ function dirPlus(dir,n){
   //We know 135 from w is ne. 6+3+8 = 17 --> 17%8 = 1 . The index of ne is 1
 }
 
+//wall follower critter object
 function WallFollower(){
   this.dir = "s"
 }
@@ -130,9 +139,9 @@ WallFollower.prototype.act = function(view){
 
 function elementFromChar(legend, ch){
   if (ch == " "){
-    return null
+    return null //returns null for empty spaces.
   }
-  //new legend object with the char as it's propertu
+  //new legend object with the char as it's property
   let element = new legend[ch]
   //asigns the ch to the originChar property of the element
   element.originChar = ch
@@ -147,6 +156,7 @@ function charFromElement(element){
     return element.originChar
   }
 }
+
 //WORLD OBJECT
 
 function World(map, legend){
@@ -177,7 +187,6 @@ function World(map, legend){
   })
 }
 
-
 //Method that turns the World into a string
 World.prototype.toString = function(){
   //output that will store our final string
@@ -191,13 +200,7 @@ World.prototype.toString = function(){
       output += charFromElement(element)
     }
     output += "\n"
-    // document.getElementsByClassName('grid')[y].innerHTML =
   }
-  //TODO: send it to html
-  document.getElementById("grid").innerHTML = output
-
-  //Function that counts elements
-  countCritters(output)
 
   return output
 }
@@ -400,10 +403,6 @@ actionTypes.eat = function(critter,vector,action){
   if(!atDest || atDest.energy == null){
     return false
   }
-    // console.log(critter)
-    // console.log("at ("+vector.x+","+vector.y+")")
-    // console.log('Ate a')
-    // console.log(atDest)
   //transfer energy
   critter.energy += atDest.energy
   //make plant at destination dissapear
@@ -420,6 +419,17 @@ actionTypes.reproduce = function(critter, vector, action){
     return false
   }
   critter.energy -= 2*baby.energy
+  this.grid.set(dest,baby)
+  return true
+}
+
+actionTypes.reproduceTiger = function(critter, vector, action){
+  let baby = elementFromChar(this.legend,critter.originChar)
+  let dest = this.checkDestination(action, vector)
+  if(dest ==  null || critter.energy <= 2 *baby.energy || this.grid.get(dest) != null){
+    return false
+  }
+  critter.energy -= 20
   this.grid.set(dest,baby)
   return true
 }
@@ -506,22 +516,21 @@ SmartPlantEater.prototype.act = function(view){
 }
 //Tiger
 function Tiger(){
-  // SmartPlantEater.call(this)
-  this.energy = 100
+  this.energy = 70
   //To know if the critter is stepping over grass
   this.overGrass = false
 }
 
-//TODO: solve direction
-Tiger.prototype = Object.create(SmartPlantEater)
+Tiger.prototype = Object.create(SmartPlantEater) //inherit from prototype
 
+//Redefine act method
 Tiger.prototype.act = function(view){
 
   let space
-
   //look for a near critter, define next space according to its position
   let directionNearest = view.lookForNearest("O",10)
 
+  //if the direction is valid, space is that direction
   if (directionNearest != null){
     //convert to directions
     for (let dir in directions){
@@ -530,25 +539,24 @@ Tiger.prototype.act = function(view){
         space = dir
       }
     }
-  } else {
-    //If there's no critter, space is random empty space.
-    //If there's no space use grass, step over grass
+  } else { //If there's no critter, space is random empty space.
+
     space = view.find(" ")
+    //If there's no space use grass, step over grass
     if (space==null){
       space = view.find("*")
     }
   }
 
-//TODO: reproduction for Tiger not working
-  // if (this.energy>100 && space){
-  //   return {type: "reproduce", direction: space}
-  // }
+
 
   let prey = view.find('O')
   let hungry = false
-  if(this.energy < 80){
+  if(this.energy < 100){
     hungry = true
   }
+
+
 
   //eat only if hungry
   //eat only if plant has a certain amount of energy
@@ -557,6 +565,12 @@ Tiger.prototype.act = function(view){
     return {type:"eat", direction: prey}
   }
 
+    //Reproduction is second priority
+    if (this.energy>80 && space){
+      return {type: "reproduceTiger", direction: space}
+    }
+
+    //movin third priority
   if (space){
     return {type:"moveOverGrass", direction:space}
   }
@@ -718,7 +732,7 @@ let cartography =
 let ecosystem = new LifelikeWorld(cartography,
               {"#": Wall,
                "@": Tiger,
-               "O": SmartPlantEater, 
+               "O": SmartPlantEater,
                "*": Plant}
             )
 
@@ -751,26 +765,27 @@ function startClock(speed, optional){
   //change interval of clock
   clock = setInterval(()=>{
     ecosystem.turn()
-    console.log(ecosystem.toString())
     counter += 1
-    document.getElementById('total').innerHTML = counter
+
+    let ecoString = ecosystem.toString()
+    console.log(ecoString) //print out worlds
+    document.getElementById('total').innerHTML = counter //update counter
+    document.getElementById("grid").innerHTML = ecoString //display world in html
+
+    //Function that counts elements
+    countCritters(ecoString)
   }, speed)
 }
 
 function reset(){
+  //reset to original ecosystem
   ecosystem = new LifelikeWorld(cartography,
                 {"#": Wall,
                  "@": Tiger,
                  "O": SmartPlantEater, // from previous exercise
                  "*": Plant}
               )
+  //reset counter and clean display
   document.getElementById('gameOver').innerHTML = ""
   counter = 0
 }
-
-let counter = 0
-let clock
-startClock(300)
-
-//TODO:
-//last at least 1000
