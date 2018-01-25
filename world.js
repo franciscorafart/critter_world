@@ -342,8 +342,9 @@ actionTypes.moveOverGrass = function(critter,vector,action){
   console.log(dest)
   //movement can only be stopped by walls
 
-  //TODO: Bug found!!! Tiger wasn't eating, it was stepping over critters.
-  if (dest == null || critter.energy <= 1 || charFromElement(this.grid.get(dest))=="#" || charFromElement(this.grid.get(dest))=="O"){
+  //TODO: 2 Bugs found!!! Tiger wasn't eating, it was stepping over critters. Also Eliminated if dest = null, was returning false making the tiger to not move
+  if (critter.energy <= 1 || charFromElement(this.grid.get(dest))=="#" || charFromElement(this.grid.get(dest))=="O"){
+    console.log("Tiger cant move")
     return false
   }
   //take energy and move critter
@@ -426,11 +427,14 @@ actionTypes.reproduce = function(critter, vector, action){
 actionTypes.reproduceTiger = function(critter, vector, action){
   let baby = elementFromChar(this.legend,critter.originChar)
   let dest = this.checkDestination(action, vector)
-  if(dest ==  null || critter.energy <= 2 *baby.energy || this.grid.get(dest) != null){
+  //BUG: dest == null in this conditional was preventing the tiger from reproducing
+  if(this.grid.get(dest) != null){
+    console.log("No space for reproduction")
     return false
   }
-  critter.energy -= 20
+  critter.energy -= 50
   this.grid.set(dest,baby)
+  console.log("Tiger reproduced")
   return true
 }
 //New critters
@@ -440,14 +444,14 @@ function Plant(){
 }
 
 Plant.prototype.act = function(view){
-  //reproduce faste
-  if(this.energy>15){
+  //reproduce fast
+  if(this.energy>10){
     let space = view.find(" ")
     if (space){
       return {type:"reproduce", direction: space}
     }
   }
-  if (this.energy < 30){
+  if (this.energy <= 80){
     return {type: "grow"}
   }
 }
@@ -480,43 +484,56 @@ SmartPlantEater.prototype = Object.create(PlantEater.prototype)
 //redefine act method
 SmartPlantEater.prototype.act = function(view){
   let space
+  let directionNearest = null
+  let plant = null
 
-  //TODO: Make critters chase plants
-  let directionNearest = view.lookForNearest("*",5)
-
-  //
-  if (directionNearest == null){
-    space = view.find(" ")
-  } else{
-    for (let dir in directions){
-      //compare key values of objects, not objects themselves
-      if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
-        space = dir
-      }
-    }
-  }
-
-  if (this.energy>20 && space){
-    return {type: "reproduce", direction: space}
-  }
-  let plant = view.find('*')
-  let hungry = true
-  let plantMature = false
-  if(this.energy < 30){
+  let hungry = false
+  if(this.energy < 25){
     hungry = true
   }
-  //eat only if hungry
-  //eat only if plant has a certain amount of energy
+  // if it is hungry and there's no plant close, look for plants
+  if(hungry){
+
+    //if hungry, find plant next critter
+    plant = view.find('*')
+
+    //if no plant, look for nearest plant direction
+    if (plant == null){
+      directionNearest = view.lookForNearest("*",5)
+
+      //if hungry, but no plants on sight, look for random empty space
+      if (directionNearest == null){
+        space = view.find(" ")
+      } else{ //if hungry and plants on sight, set direction
+        for (let dir in directions){
+          //compare key values of objects, not objects themselves
+          if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
+            space = dir
+          }
+        }
+      }
+    }
+  }else{ //if not hungry look for empty space to move randomly
+    space = view.find(" ")
+  }
+
+
+  //if there's a plant next and critter is hungry, eat
   if(plant && hungry){
     return {type:"eat", direction: plant}
   }
+  //if energy enough, reproduce
+  if (this.energy>=25 && space){
+    return {type: "reproduce", direction: space}
+  }
+  //move towards space
   if (space){
     return {type:"move", direction:space}
   }
 }
 //Tiger
 function Tiger(){
-  this.energy = 70
+  this.energy = 50
   //To know if the critter is stepping over grass
   this.overGrass = false
 }
@@ -527,35 +544,47 @@ Tiger.prototype = Object.create(SmartPlantEater) //inherit from prototype
 Tiger.prototype.act = function(view){
 
   let space
-  //look for a near critter, define next space according to its position
-  let directionNearest = view.lookForNearest("O",10)
+  let hungry = false
+  let prey = null
+  let directionNearest = null
 
-  //if the direction is valid, space is that direction
-  if (directionNearest != null){
-    //convert to directions
-    for (let dir in directions){
-      //compare key values of objects, not objects themselves
-      if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
-        space = dir
+  if(this.energy <= 100){
+    hungry = true
+  }
+  // debugger
+  if(hungry){
+    prey = view.find('O')
+
+    if (prey == null){
+      //look for a near critter, define next space according to its position
+      directionNearest = view.lookForNearest("O",11)
+
+      //if the direction is valid, space is that direction
+      if (directionNearest != null){
+        //convert to directions
+        for (let dir in directions){
+          //compare key values of objects, not objects themselves
+          if (directions[dir].x==directionNearest.x && directions[dir].y==directionNearest.y){
+            space = dir
+          }
+        }
+      } else { //If there's no critter, space is random empty space.
+        space = view.find(" ")
+        //If there's no space use grass, step over grass
+        if (space==null){
+          space = view.find("*")
+        }
       }
     }
-  } else { //If there's no critter, space is random empty space.
 
+  } else { //If not hungry, space is random empty space.
     space = view.find(" ")
-    //If there's no space use grass, step over grass
+    //If there's no space, step over grass
     if (space==null){
       space = view.find("*")
     }
   }
-
-
-
-  let prey = view.find('O')
-  let hungry = false
-  if(this.energy < 100){
-    hungry = true
-  }
-
+  // debugger
 
 
   //eat only if hungry
@@ -564,16 +593,18 @@ Tiger.prototype.act = function(view){
     console.log("Tiger ate!")
     return {type:"eat", direction: prey}
   }
-
     //Reproduction is second priority
-    if (this.energy>80 && space){
+    if (this.energy>100 && space){
+      console.log("Trying to reproduce Tiger")
       return {type: "reproduceTiger", direction: space}
     }
 
-    //movin third priority
+    //moving third priority
   if (space){
+    console.log("trying to move Tiger")
     return {type:"moveOverGrass", direction:space}
   }
+
 }
 //View OBJECT
 
@@ -673,7 +704,6 @@ View.prototype.lookForNearest = function(ch, scope){
 
   //If the tiger faces wall to reach his prey, or critter faces another critter, then return null, not the direction
   if(this.look(thisDir) == "#" ||this.look(thisDir) == "O"){
-    console.log("Tiger against the Wall!!!!")
     return null
   }
 
@@ -711,22 +741,22 @@ View.prototype.find = function(ch){
 
 let cartography =
 ["####################################################",
- "#                 ####         ****              ###",
- "#   *  @  ##                 ########       OO    ##",
+ "#                *####         ****              ###",
+ "#   *     ##                 ########       OO    ##",
  "#   *    ##        O O                 ****       *#",
  "#       ##*                        ##########     *#",
- "#      ##***  *         ****                     **#",
+ "#        ***  *         ****  O                  **#",
  "#* **  #  *  ***      ##    ###                  **#",
  "#* **  #      *               #   *              **#",
  "#     ##              #   O   #  ***          ######",
  "#*                    #           *        O  #    #",
- "#*                    #  ######                 ** #",
+ "#* O                  #  ######                 ** #",
  "###    ***   ****          ***                  ** #",
- "#       O                          @       O       #",
- "#   *     ##  ##  ##  ##               ###      *  #",
+ "#       O                                  O       #",
+ "#   *     ##  ##  ##  ##     @         ###      *  #",
  "#   **         #              *       #####  O     #",
  "##  **  O   O  #  #    ***  ***        ###      ** #",
- "###               #   *****                    ****#",
+ "###               #   *****          *         ****#",
  "####################################################"]
 
 let ecosystem = new LifelikeWorld(cartography,
